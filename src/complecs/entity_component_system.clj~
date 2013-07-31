@@ -1,0 +1,21 @@
+(ns complecs.entity-component-system
+  )
+
+
+;;;; TODO: Use defprotocol, defrecord, and extend to
+;;;; create components with interfaces!!
+
+(defmacro defcomponent
+  "Define a component.  Components may be implemented as records
+or as extensions of an existing type."
+  [name fields-or-type & specs]
+
+  (let [specs (partition-by symbol? specs)]
+  
+    (if (class? fields-or-type)
+
+      ;; A class was provided
+      `(extend )
+      
+      ;; A class was not provided
+      `())))
