@@ -1,6 +1,17 @@
-(ns complecs.core)
+(ns complecs.core
+  (:use
+   potemkin)
+  (:require
+   complecs.state-machine
+   complecs.entity-component-system))
 
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+(import-vars
+ [complecs.state-machine
+  
+  init-state-machine
+  ]
+
+ [complecs.entity-component-system
+
+  defcomponent])
+ 

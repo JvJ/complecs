@@ -19,4 +19,5 @@
                  [org.clojure/core.incubator "0.1.2"]
                  [com.badlogic.gdx/gdx "0.9.9-SNAPSHOT"]
                  [com.badlogic.gdx/gdx-backend-lwjgl "0.9.9-SNAPSHOT"]
+                 [potemkin "0.3.1"]
                  ])
