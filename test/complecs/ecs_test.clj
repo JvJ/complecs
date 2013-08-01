@@ -10,21 +10,32 @@
 ;;;; is implemented by 2 components
 (defprotocol Vector
   (mag [this])
-  (v+ [this] [this other] [this a b & c]))
+  (v+ [this] [this other]))
 
 ;;; First, we have the map implementation
 (defcomponent Vec2 [x y]
+  
+  Vector
+  (mag
+   [this]
+   (Math/sqrt
+    (+ (* x x) (* y y))))
+  
+  (v+
+   ([this]
+      this)
+    ([this other]
+       (Vec2. (+ x (:x other))
+              (+ y (:y other))))))
+
+(defcomponent String :extend
 
   Vector
-  (mag [this]
-       (Math/sqrt
-        (+ (* x x) (* y y))))
+  (mag
+   [this]
+   (count this))
   
-  (v+ [this] this)
-  (v+ [this other]
-      (Vec2. (+ (:x this) (:x other)
-                (:y this) (:y other))))
-  (v+ [this a b & c]
-      (reduce v+
-              this
-              (conj c b a))))
+  (v+
+   ([this] this)
+   ([this other] (str this other))))
+

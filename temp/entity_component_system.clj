@@ -1,5 +1,4 @@
 (ns complecs.entity-component-system
-  "Defines operators from entities, components, and systems."
   (:use [clojure.algo.generic.functor]
         [complecs.util]))
 
@@ -19,8 +18,9 @@ function forms as defined in the defcomponent macro"
      (every? seq? frm)     :multi
      (vector? (first frm))     :single
      :else     nil)))
-
-;;;; Components
+   
+           
+   
 
 (defmacro defcomponent
   "Define a component.  Components may be implemented as records
@@ -42,13 +42,14 @@ or as extensions of an existing type."
                       (str "defcomponent: specification format error: "
                            e)))))]
     
-    (if (= fields-or-type :extend)
-      
+    (if (symbol? fields-or-type)
+             
       
       ;; A class was provided
       ;; The extend form is weird and needs an associative
       ;; map instead of the regular forms.  So we need to
       ;; transform what we have.
+      ;; TODO: How do we know when a type implements a protocol?
       (let [methods (fmap
                      (fn [spec]
                        (reduce
@@ -61,13 +62,15 @@ or as extensions of an existing type."
             ]
         
         `(do
-           (extend ~nme
+           (def ~nme ~fields-or-type)
+           (extend ~fields-or-type
              ~@(apply concat methods))))
       
       ;; A class was not provided
       ;; We just treat it as a normal defrecord
       ;; Todo: break up multi-implementation functions into
       ;; a sequence of single-implementation functions
+
       `(defrecord ~nme ~fields-or-type
          ~@(apply concat
              (for [[k v] specs]
@@ -85,6 +88,3 @@ or as extensions of an existing type."
                            (throw (Exception.
                                    (str "Error with provided function form: "
                                         f)))))))))))))
-
-
-;;;; Systems

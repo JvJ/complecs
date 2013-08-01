@@ -1,4 +1,4 @@
-(ns util)
+(ns complecs.util)
 
 (defn f
   "Floating point literal."
