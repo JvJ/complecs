@@ -30,6 +30,8 @@
 
 (defcomponent String :extend
 
+  :deps  (String Integer)
+  
   Vector
   (mag
    [this]
@@ -39,3 +41,18 @@
    ([this] this)
    ([this other] (str this other))))
 
+(def test-entity
+  (entity "Hello" (Vec2. 1 3)))
+
+(defcomponentsystem
+  vector-update
+  Vector
+  []
+  [ecs ent cmp]
+  "The function body!!")
+
+
+(make-ecs
+ :entities
+ [ (entity (Vec2. 1 2)) ]
+ )
