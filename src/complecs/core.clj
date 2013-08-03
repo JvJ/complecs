@@ -26,6 +26,7 @@
   row
   col
   t-get
+  t-update
   int-table
   ]
  )
