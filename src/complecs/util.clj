@@ -1,4 +1,5 @@
-(ns complecs.util)
+(ns complecs.util
+  (:require [clojure.set :as set]))
 
 (defn f
   "Floating point literal."
@@ -47,23 +48,41 @@ lookup function is returned."
 (defn t-update
   "Update a value or values in the map."
   [m f &{:keys [r c]}]
-  (cond
-   (and r c) (update-in m [r c] f)
-   r (update-in m [r] f)
-   
-   ;; This O(n) column update is making me angry!
-   c (let [res (f (into {} (t-get m :c c)))]
-       (println "f result: " res)
-       (reduce
-        (fn [acc k]
-          (if-let [v (get res k)]
-            (update-in acc [k] assoc c v)
-            (if (contains? (get m k) c)
-              (update-in acc [k] dissoc c)
-              acc)))
-        m
-        (clojure.set/union (set (keys m))
-                           (set (keys res)))))))
+  (with-meta
+    (cond
+     (and r c) (update-in m [r c] f)
+     r (update-in m [r] f)
+     
+     ;; This O(n) column update is making me angry!
+     c (let [res (f (into {} (t-get m :c c)))]
+         (println "f result: " res)
+         (reduce
+          (fn [acc k]
+            (if-let [v (get res k)]
+              (update-in acc [k] assoc c v)
+              (if (contains? (get m k) c)
+                (update-in acc [k] dissoc c)
+                acc)))
+          m
+          (set/union (set (keys m))
+                             (set (keys res))))))
+    ;; The meta
+    ;; TODO: This doesn't necessarily work!
+    ;; What about removing rows/colums??
+    ;; Actually... we'll just keep a full record of column keys!!
+    (-> (meta m)
+        (update-in [:row-keys]
+                   set/union
+                   (if r (sorted-set r)))
+        (update-in [:col-keys]
+                   set/union
+                   (if c (sorted-set c))))))
+
+(defn t-keys
+  "Get the sets representing the keys for the table."
+  [m]
+  {:row-keys (:row-keys (meta m))
+   :col-keys (:col-keys (meta m))})
 
 (defn t-set
   "Set a value or values in the map."

@@ -27,7 +27,8 @@ It is passed as a parameter to systems.
 
 "
   (:use [clojure.algo.generic.functor]
-        [complecs.util]))
+        [complecs.util]
+        [clojure.algo.monads]))
 
 (def ^:dynamic *component-deps*
   "This stores the mappings of component dependencies."
@@ -37,9 +38,16 @@ It is passed as a parameter to systems.
 (defn entity
   "Create an entity map from a set of components."
   [& comps]
-  (into {}
-        (map #(-> [(class %) %])
-             comps)))
+  (with-meta
+    (into {}
+          (map #(-> [(class %) %])
+               comps))
+    {:type :entity}))
+
+(defn entity?
+  "Predicate entity!"
+  [m]
+  (= (type m) :entity))
   
   
 ;;;; Utility Functions
@@ -60,13 +68,14 @@ function forms as defined in the defcomponent macro"
 (defn s-extends?
   "A safe version of extends? that just returns false if it fails."
   [protocol atype]
-  (let [protocol (if (var? protocol)
-                   (var-get protocol)
-                   protocol)]
-    (and (:impls protocol)
-         (:on-interface protocol)
-         (extends? protocol atype))))
-
+  (or (= protocol atype)
+      (let [protocol (if (var? protocol)
+                       (var-get protocol)
+                       protocol)]
+        (and (:impls protocol)
+             (:on-interface protocol)
+             (extends? protocol atype)))))
+  
 ;;;; Components
 
 (defmacro defcomponent
@@ -167,8 +176,33 @@ by a single list to denote dependencies on other components.x
 
 ;;;; Systems
 (defmacro defsystem
-  []
-  )
+  "Define a system to operate without components.
+Params:
+ [name comp-type docstring? [& inst-params] [& fn-params] & fn-body]
+"
+  [nme & r]
+  
+  (let [docstring-seq (if (string? (first r)) (list (first r)))
+        
+        [inst-params fn-params & fn-body]
+        (if docstring-seq (next r) r)
+        
+        _ (if-not (= 1 (count fn-params))
+            (throw
+             (Exception. (str "defsystem: Error. "
+                              "Expected 1 params for function. "
+                              "Received: " fn-params))))
+
+        ]
+    `(defn ~nme
+       ~@docstring-seq
+       ~inst-params
+       (fn ~fn-params
+         ~@fn-body))))
+
+(defmulti system-update
+  "A multimethod"
+  (comp))
 
 
 (defmacro defcomponentsystem
@@ -181,7 +215,12 @@ Params:
         
         [inst-params fn-params & fn-body]
         (if docstring-seq (next r) r)
-        
+
+        _ (if-not (= 3 (count fn-params))
+            (throw
+             (Exception. (str "defcomponentsystem: Error. "
+                              "Expected 3 params for function. "
+                              "Received: " fn-params))))
         ]
     `(defn ~nme
        ~@docstring-seq
@@ -193,11 +232,89 @@ Params:
                         comp-type
                         `(var ~comp-type))}))))
 
+(defn comp-type
+  "Returns the component type of a system."
+  [s]
+  (:comp-type (meta s)))
+
+(defmulti system-update
+  "Updates a system.  Different depending on what kind of system it is.
+ Takes 2 params - the system and the entity table."
+  (fn [a b] (contains? :comp-type (meta a))))
+
+;;; System update for non-component systems
+(defmethod system-update false
+  [sys ents]
+  (sys ents))
+
+;;; System update for component systems
+(defmethod system-update true
+  [sys ents]
+  (let [typ (comp-type sys)
+        ck (->> ents
+                t-keys
+                :col-keys
+                (filter #(s-extends? typ %)))]
+    (reduce
+     (fn [acc [ent ent-m]]
+       (reduce #(update-in %1 [%2] sys ents ent (%1 %2))
+               ent-m
+               ck))
+     ents
+     ents)))
 
 ;;;; The ECS creator
 (defn make-ecs
   "Make an entity component system."
   [&{:keys [entities systems]}]
   {:entities (apply int-table entities)
-   ;; TODO: How will the systems be arranged?
-   })
+   :systems systems})
+
+
+;;;; Set and Update functions
+(defn ecs-update
+  "Update the ecs.  For the moment,
+ it's the same as update-in.  However, the implementation
+ may change, so use this function."
+  [ecs [& keys] f & args]
+  (apply update-in ecs keys f args))
+  
+(defn ecs-set
+  "Set a value in the ecs."
+  [ecs [& keys] value]
+  (ecs-update ecs keys (constantly value)))
+
+(defn get-entity
+  "Get an entity in the system."
+  [{ents :entities} ent]
+  (get ents ent))
+
+(defn get-components
+  "Get a set of components of the specified class
+ or protocol, and their associated entities."
+  [{ents :entities} typ]
+  (let [ks (filter #(s-extends? typ %)
+                   (:col-keys (t-keys ents)))]
+    (into (sorted-map)
+          (for [ent (keys ents)
+                k ks]
+            [ent (get-in ents [ent k])]))))
+      
+
+  
+
+  
+;;;; CES Advancement
+
+;; (defn advance-ces
+;;   "Advance the ces."
+;;   [{:keys [entities
+;;            systems]
+;;     :as ecs}]
+;;   (update-in
+;;    ecs
+;;    [:entities]
+;;    (fn [ents]
+;;      (reduce
+      
+;;       systems
